@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, session
 from flask_session import Session
+from rich import print
+from rich.table import Table
 
 from l2mac import run_l2mac, Domain
 
@@ -32,8 +34,10 @@ def register():
   username = request.form["username"]
   password = request.form["password"]
   if username in users_db:
+    print("[bold red]Error:[/bold red] Username already exists")
     return jsonify({"error": "Username already exists"}), 400
   users_db[username] = {"password": password, "urls": []}
+  print("[bold green]Success:[/bold green] User registered successfully")
   return jsonify({"message": "User registered successfully"}), 200
 
 
@@ -44,8 +48,10 @@ def login():
   user = users_db.get(username)
   if user and user["password"] == password:
     session["user"] = username
+    print("[bold green]Success:[/bold green] Logged in successfully")
     return jsonify({"message": "Logged in successfully"}), 200
   else:
+    print("[bold red]Error:[/bold red] Invalid username or password")
     return jsonify({"error": "Invalid username or password"}), 401
 
 
@@ -53,6 +59,7 @@ def login():
 def logout():
   if "user" in session:
     session.pop("user", None)
+  print("[bold green]Success:[/bold green] Logged out successfully")
   return jsonify({"message": "Logged out successfully"}), 200
 
 
@@ -75,6 +82,7 @@ def shorten_url():
       users_db[session["user"]]["urls"].append(short_url)
     # Initialize analytics for the new short URL
     analytics_db[short_url] = {"clicks": 0, "click_details": []}
+    print(f"[bold green]Success:[/bold green] URL shortened: {short_url}")
     return (
         jsonify({
             "original_url":
@@ -87,6 +95,7 @@ def shorten_url():
         200,
     )
   else:
+    print("[bold red]Error:[/bold red] Invalid URL")
     return jsonify({"error": "Invalid URL"}), 400
 
 
@@ -96,19 +105,29 @@ def redirect_to_original(short_url):
       and datetime.now() <= urls_db[short_url]["expiration"]):
     # Update analytics
     update_analytics(short_url, request.remote_addr)
+    print(f"[bold green]Redirecting to:[/bold green] {urls_db[short_url]['url']}")
     return redirect(urls_db[short_url]["url"])
   elif (short_url in urls_db
         and datetime.now() > urls_db[short_url]["expiration"]):
+    print("[bold red]Error:[/bold red] URL has expired")
     return jsonify({"error": "URL has expired"}), 410
   else:
+    print("[bold red]Error:[/bold red] URL not found")
     return jsonify({"error": "URL not found"}), 404
 
 
 @app.route("/analytics/<short_url>")
 def view_analytics(short_url):
   if short_url in analytics_db:
+    table = Table(title="Analytics")
+    table.add_column("Timestamp", justify="center", style="cyan")
+    table.add_column("IP Address", justify="center", style="magenta")
+    for click in analytics_db[short_url]["click_details"]:
+      table.add_row(click["timestamp"], click["ip_address"])
+    print(table)
     return jsonify(analytics_db[short_url]), 200
   else:
+    print("[bold red]Error:[/bold red] Analytics not found for the given URL")
     return jsonify({"error": "Analytics not found for the given URL"}), 404
 
 
@@ -116,8 +135,15 @@ def view_analytics(short_url):
 def user_urls():
   if "user" in session:
     user_urls = users_db[session["user"]]["urls"]
+    table = Table(title="User URLs")
+    table.add_column("Short URL", justify="center", style="cyan")
+    table.add_column("Original URL", justify="center", style="magenta")
+    for short_url in user_urls:
+      table.add_row(short_url, urls_db[short_url]["url"])
+    print(table)
     return jsonify({"urls": user_urls}), 200
   else:
+    print("[bold red]Error:[/bold red] Unauthorized access")
     return jsonify({"error": "Unauthorized"}), 401
 
 
@@ -127,10 +153,13 @@ def edit_url(short_url):
     new_url = request.form["url"]
     if validate_url(new_url):
       urls_db[short_url] = new_url
+      print("[bold green]Success:[/bold green] URL updated successfully")
       return jsonify({"message": "URL updated successfully"}), 200
     else:
+      print("[bold red]Error:[/bold red] Invalid URL")
       return jsonify({"error": "Invalid URL"}), 400
   else:
+    print("[bold red]Error:[/bold red] Unauthorized or URL not found")
     return jsonify({"error": "Unauthorized or URL not found"}), 401
 
 
@@ -140,8 +169,10 @@ def delete_url(short_url):
     users_db[session["user"]]["urls"].remove(short_url)
     urls_db.pop(short_url, None)
     analytics_db.pop(short_url, None)
+    print("[bold green]Success:[/bold green] URL deleted successfully")
     return jsonify({"message": "URL deleted successfully"}), 200
   else:
+    print("[bold red]Error:[/bold red] Unauthorized or URL not found")
     return jsonify({"error": "Unauthorized or URL not found"}), 401
 
 
@@ -150,8 +181,15 @@ def delete_url(short_url):
 def admin_view_urls():
   if "user" in session and users_db.get(session["user"], {}).get(
       "is_admin", False):
+    table = Table(title="All URLs")
+    table.add_column("Short URL", justify="center", style="cyan")
+    table.add_column("Original URL", justify="center", style="magenta")
+    for short_url, data in urls_db.items():
+      table.add_row(short_url, data["url"])
+    print(table)
     return jsonify({"urls": list(urls_db.keys())}), 200
   else:
+    print("[bold red]Error:[/bold red] Unauthorized access")
     return jsonify({"error": "Unauthorized"}), 401
 
 
@@ -161,8 +199,10 @@ def admin_delete_url(short_url):
       "is_admin", False):
     urls_db.pop(short_url, None)
     analytics_db.pop(short_url, None)
+    print("[bold green]Success:[/bold green] URL deleted successfully")
     return jsonify({"message": "URL deleted successfully"}), 200
   else:
+    print("[bold red]Error:[/bold red] Unauthorized access")
     return jsonify({"error": "Unauthorized"}), 401
 
 
@@ -172,10 +212,13 @@ def admin_delete_user(username):
       "is_admin", False):
     if username in users_db:
       del users_db[username]
+      print("[bold green]Success:[/bold green] User deleted successfully")
       return jsonify({"message": "User deleted successfully"}), 200
     else:
+      print("[bold red]Error:[/bold red] User not found")
       return jsonify({"error": "User not found"}), 404
   else:
+    print("[bold red]Error:[/bold red] Unauthorized access")
     return jsonify({"error": "Unauthorized"}), 401
 
 
@@ -203,8 +246,10 @@ def generate_codebase():
         tools_enabled=tools_enabled,
         debugging_level=debugging_level,
     )
+    print("[bold green]Success:[/bold green] Codebase generated successfully")
     return jsonify({"result": result}), 200
   except Exception as e:
+    print(f"[bold red]Error:[/bold red] {str(e)}")
     return jsonify({"error": str(e)}), 500
 
 
