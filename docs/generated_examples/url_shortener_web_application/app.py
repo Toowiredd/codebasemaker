@@ -8,6 +8,8 @@ import requests
 from flask import Flask, jsonify, redirect, render_template, request, session
 from flask_session import Session
 
+from l2mac import run_l2mac, Domain
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "a_very_secret_key"
 app.config["SESSION_TYPE"] = "filesystem"
@@ -175,6 +177,35 @@ def admin_delete_user(username):
       return jsonify({"error": "User not found"}), 404
   else:
     return jsonify({"error": "Unauthorized"}), 401
+
+
+@app.route("/generate_codebase", methods=["POST"])
+def generate_codebase():
+  prompt_task = request.form["prompt_task"]
+  domain = request.form.get("domain", "codebase")
+  run_tests = request.form.get("run_tests", "false").lower() == "true"
+  project_name = request.form.get("project_name")
+  steps = int(request.form.get("steps", 10))
+  prompt_program = request.form.get("prompt_program")
+  prompts_file_path = request.form.get("prompts_file_path")
+  tools_enabled = request.form.get("tools_enabled")
+  debugging_level = request.form.get("debugging_level", "info")
+
+  try:
+    result = run_l2mac(
+        prompt_task=prompt_task,
+        domain=Domain[domain],
+        run_tests=run_tests,
+        project_name=project_name,
+        steps=steps,
+        prompt_program=prompt_program,
+        prompts_file_path=prompts_file_path,
+        tools_enabled=tools_enabled,
+        debugging_level=debugging_level,
+    )
+    return jsonify({"result": result}), 200
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
 
 
 def validate_url(url):

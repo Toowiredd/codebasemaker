@@ -5,3 +5,7 @@ llm:
   model: "gpt-4o"
   base_url: "https://api.openai.com/v1"  # or forward url / other llm url
   api_key: "YOUR_API_KEY"
+
+ui:
+  api_key: "YOUR_UI_API_KEY"
+  base_url: "https://your-ui-base-url.com"

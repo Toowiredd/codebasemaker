@@ -32,6 +32,10 @@ export default defineConfig({
         text: 'Gallery',
         link: '/guide/use_cases/gallery',
       },
+      {
+        text: 'User Interface',
+        link: '/guide/user_interface',
+      },
     ],
 
     sidebar: {
@@ -112,6 +116,10 @@ export default defineConfig({
       {
         text: 'FAQ',
         link: 'faq',
+      },
+      {
+        text: 'User Interface',
+        link: 'user_interface',
       },
       ],
       }

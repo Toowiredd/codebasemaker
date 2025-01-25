@@ -4,6 +4,8 @@ import random
 import sys
 
 import pygame
+from rich import print
+from rich.panel import Panel
 
 # Initialize Pygame
 pygame.init()
@@ -104,11 +106,12 @@ def main():
     if snake.positions[0] == food.position:
       snake.grow()
       food.randomize_position()
+      print(Panel.fit(f"[bold green]Yum! Score: {snake.score}[/bold green]"))
 
     # Check for collisions
     if snake.positions[0] in snake.positions[1:]:
       # Game over logic
-      print("Game Over! Your score was:", snake.score)
+      print(Panel.fit(f"[bold red]Game Over! Your score was: {snake.score}[/bold red]"))
       pygame.quit()
       sys.exit()
 
